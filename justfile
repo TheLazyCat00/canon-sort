@@ -1,12 +1,9 @@
-# canon_sort — just recipes
-# https://github.com/casey/just
-
 # ----------------------------------------------------------------
 # Variables
 # ----------------------------------------------------------------
 
 cxx      := "zig c++"
-flags    := "-O3 -march=native -std=c++17"
+flags    := "-O3 -march=native -std=c++17 -pthread"
 inc      := "-Iinclude"
 inc_bench := "-Iinclude -I./bench/ips4o/include"
 libs     := "-ltbb"
@@ -44,7 +41,7 @@ static:
 
 bench:
     {{cxx}} {{flags}} {{inc_bench}} {{libs}} \
-        -o bench \
+        -o build/bench \
         src/canon_sort.cpp bench/bench.cpp
 
 # ----------------------------------------------------------------
@@ -52,7 +49,7 @@ bench:
 # ----------------------------------------------------------------
 
 run: bench
-    ./bench
+    ./build/bench
 
 # ----------------------------------------------------------------
 # Cross-compile shared library (example: aarch64 linux musl)
