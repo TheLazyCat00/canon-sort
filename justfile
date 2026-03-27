@@ -29,7 +29,9 @@ default:
 # ----------------------------------------------------------------
 
 tbb-host:
+	rm -rf vendor/tbb/build/host
 	cmake -S vendor/tbb -B vendor/tbb/build/host \
+		-G Ninja \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_CXX_COMPILER="{{zig_cxx}}" \
 		-DCMAKE_C_COMPILER="{{zig_cc}}" \
@@ -72,38 +74,38 @@ tbb-cross target:
 	CXX_FLAGS="-O2 -std=c++17 -fPIC -target {{target}} $ARCH_FLAGS"
 
 	SOURCES="
-	$TBB_SRC/address_waiter.cpp
-	$TBB_SRC/allocator.cpp
-	$TBB_SRC/arena.cpp
-	$TBB_SRC/arena_slot.cpp
-	$TBB_SRC/concurrent_bounded_queue.cpp
-	$TBB_SRC/dynamic_link.cpp
-	$TBB_SRC/exception.cpp
-	$TBB_SRC/global_control.cpp
-	$TBB_SRC/governor.cpp
-	$TBB_SRC/itt_notify.cpp
-	$TBB_SRC/main.cpp
-	$TBB_SRC/market.cpp
-	$TBB_SRC/misc.cpp
-	$TBB_SRC/misc_ex.cpp
-	$TBB_SRC/observer_proxy.cpp
-	$TBB_SRC/parallel_pipeline.cpp
-	$TBB_SRC/private_server.cpp
-	$TBB_SRC/profiling.cpp
-	$TBB_SRC/queuing_rw_mutex.cpp
-	$TBB_SRC/rml_tbb.cpp
-	$TBB_SRC/rtm_mutex.cpp
-	$TBB_SRC/rtm_rw_mutex.cpp
-	$TBB_SRC/semaphore.cpp
-	$TBB_SRC/small_object_pool.cpp
-	$TBB_SRC/task.cpp
-	$TBB_SRC/task_dispatcher.cpp
-	$TBB_SRC/task_group_context.cpp
-	$TBB_SRC/tcm_adaptor.cpp
-	$TBB_SRC/thread_dispatcher.cpp
-	$TBB_SRC/thread_request_serializer.cpp
-	$TBB_SRC/threading_control.cpp
-	$TBB_SRC/version.cpp
+		$TBB_SRC/address_waiter.cpp
+		$TBB_SRC/allocator.cpp
+		$TBB_SRC/arena.cpp
+		$TBB_SRC/arena_slot.cpp
+		$TBB_SRC/concurrent_bounded_queue.cpp
+		$TBB_SRC/dynamic_link.cpp
+		$TBB_SRC/exception.cpp
+		$TBB_SRC/global_control.cpp
+		$TBB_SRC/governor.cpp
+		$TBB_SRC/itt_notify.cpp
+		$TBB_SRC/main.cpp
+		$TBB_SRC/market.cpp
+		$TBB_SRC/misc.cpp
+		$TBB_SRC/misc_ex.cpp
+		$TBB_SRC/observer_proxy.cpp
+		$TBB_SRC/parallel_pipeline.cpp
+		$TBB_SRC/private_server.cpp
+		$TBB_SRC/profiling.cpp
+		$TBB_SRC/queuing_rw_mutex.cpp
+		$TBB_SRC/rml_tbb.cpp
+		$TBB_SRC/rtm_mutex.cpp
+		$TBB_SRC/rtm_rw_mutex.cpp
+		$TBB_SRC/semaphore.cpp
+		$TBB_SRC/small_object_pool.cpp
+		$TBB_SRC/task.cpp
+		$TBB_SRC/task_dispatcher.cpp
+		$TBB_SRC/task_group_context.cpp
+		$TBB_SRC/tcm_adaptor.cpp
+		$TBB_SRC/thread_dispatcher.cpp
+		$TBB_SRC/thread_request_serializer.cpp
+		$TBB_SRC/threading_control.cpp
+		$TBB_SRC/version.cpp
 	"
 
 	echo "Compiling TBB for {{target}}..."
@@ -133,11 +135,15 @@ build: tbb-host
 # ----------------------------------------------------------------
 
 bench: tbb-host
+	#!/usr/bin/env sh
+	set -e
 	mkdir -p build
-	zig c++ {{flags}} {{inc_bench}} \
+	TBB_LIB_DIR=$(dirname $(find vendor/tbb/build/host -name 'libtbb.so' | head -1))
+	echo "TBB lib dir: $TBB_LIB_DIR"
+	{{zig_cxx}} {{flags}} {{inc_bench}} \
 		-Ivendor/tbb/include \
-		-L vendor/tbb/build/host \
-		-Wl,-rpath,vendor/tbb/build/host \
+		-L "$TBB_LIB_DIR" \
+		-Wl,-rpath,"$TBB_LIB_DIR" \
 		-o build/bench \
 		src/canon_sort.cpp bench/bench.cpp \
 		-ltbb
