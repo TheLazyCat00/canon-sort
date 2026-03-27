@@ -183,6 +183,10 @@ static void verify(const char *name, int *arr, int n) {
 	}
 }
 
+static void canon_bench(int* arr, int size) {
+	canon_sort(arr, size, sizeof(int));
+}
+
 static void smoke_test(void) {
 	typedef void (*sfn)(int *, int);
 	struct { const char *name; sfn fn; } algos[] = {
@@ -191,7 +195,7 @@ static void smoke_test(void) {
 		{"Radix Sort",     radix_sort},
 		{"pdqsort",        pdq_sort},
 		{"IPS4o",          ips4o_sort},
-		{"Canon Sort",     canon_sort_int},
+		{ "Canon Sort" , canon_bench},
 	};
 	int na = sizeof(algos)/sizeof(algos[0]);
 
@@ -273,7 +277,7 @@ static void run_benchmarks(void) {
 		{"Radix Sort (LSD)",    radix_sort},
 		{"pdqsort (std::sort)", pdq_sort},
 		{"IPS4o (parallel)",    ips4o_sort},
-		{"Canon Sort",          canon_sort_int},
+		{ "Canon Sort" , canon_bench},
 	};
 	int na = sizeof(algos)/sizeof(algos[0]);
 
