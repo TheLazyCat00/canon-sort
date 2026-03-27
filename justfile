@@ -151,23 +151,38 @@ bench: tbb-host
 
 # ----------------------------------------------------------------
 # Cross-compile canon_sort for a single target
-# Produces a fat libcanon.a with TBB objects merged in
-# →  dist/<target>/libcanon.a
 # ----------------------------------------------------------------
 
 cross target: (tbb-cross target)
+	#!/usr/bin/env sh
+	set -e
 	mkdir -p dist/{{target}}
-	zig c++ {{flags_cross}} {{inc}} \
+
+	# Compile canon_sort
+	{{zig_cxx}} {{flags_cross}} {{inc}} \
 		-Ivendor/tbb/include \
 		-target {{target}} \
+		-fPIC \
 		-c -o dist/{{target}}/canon_sort.o \
 		src/canon_sort.cpp
-	# Merge canon_sort.o + all TBB objects into one fat archive
-	zig ar rcs dist/{{target}}/libcanon.a \
+
+	# Static: fat archive with TBB merged in
+	{{zig_ar}} rcs dist/{{target}}/libcanon.a \
 		dist/{{target}}/canon_sort.o \
 		vendor/tbb/build/{{target}}/tbb_objects/*.o
+
+	# Shared: same objects wrapped as .so
+	{{zig_cxx}} -target {{target}} \
+		-shared -fPIC \
+		-Wl,--whole-archive \
+		dist/{{target}}/libcanon.a \
+		-Wl,--no-whole-archive \
+		-lpthread \
+		-o dist/{{target}}/libcanon.so
+
 	rm dist/{{target}}/canon_sort.o
-	@echo "→ dist/{{target}}/libcanon.a"
+	echo "→ dist/{{target}}/libcanon.a"
+	echo "→ dist/{{target}}/libcanon.so"
 
 # ----------------------------------------------------------------
 # Cross-compile for all targets
