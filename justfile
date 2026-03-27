@@ -14,7 +14,7 @@ flags_cross := "-O3 -std=c++17 -pthread"
 inc         := "-Iinclude"
 inc_bench   := "-Iinclude -I./bench/ips4o/include"
 
-targets := "x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux-musl x86_64-windows-gnu aarch64-windows-gnu"
+targets := "x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux-musl"
 
 # ----------------------------------------------------------------
 # Default: list recipes
@@ -46,61 +46,74 @@ tbb-host:
 # →  vendor/tbb/build/<target>/tbb_objects/
 # ----------------------------------------------------------------
 
+# Compile TBB sources directly with zig — no CMake needed for cross targets
 tbb-cross target:
 	#!/usr/bin/env sh
 	set -e
-	BUILD_DIR="$(pwd)/vendor/tbb/build/{{target}}"
-	rm -rf "$BUILD_DIR"
-	mkdir -p "$BUILD_DIR"
-	TOOLCHAIN="$BUILD_DIR/toolchain.cmake"
+	OBJ_DIR="$(pwd)/vendor/tbb/build/{{target}}/tbb_objects"
+	rm -rf "$OBJ_DIR"
+	mkdir -p "$OBJ_DIR"
+
+	TBB_SRC="$(pwd)/vendor/tbb/src/tbb"
+	TBB_INC="$(pwd)/vendor/tbb/include"
+	TBB_SRC_INC="$(pwd)/vendor/tbb/src"
+
+	DEFINES="-D__TBB_BUILD \
+		-D__TBB_DYNAMIC_LOAD_ENABLED=0 \
+		-D__TBB_SOURCE_DIRECTLY_INCLUDED=1 \
+		-DTBB_USE_THREADING_TOOLS \
+		-D_FORTIFY_SOURCE=2"
 
 	case "{{target}}" in
-	*windows*) SYSTEM_NAME=Windows ;;
-	*linux*)   SYSTEM_NAME=Linux   ;;
-	*macos*)   SYSTEM_NAME=Darwin  ;;
-	*)         SYSTEM_NAME=Linux   ;;
+	x86_64*) ARCH_FLAGS="-mwaitpkg" ;;
+	*)       ARCH_FLAGS="" ;;
 	esac
 
-	case "{{target}}" in
-	x86_64*) TBB_ARCH_FLAGS="-mwaitpkg" ;;
-	*)       TBB_ARCH_FLAGS="" ;;
-	esac
+	CXX_FLAGS="-O2 -std=c++17 -fPIC -target {{target}} $ARCH_FLAGS"
 
-	cat > "$TOOLCHAIN" << TOOLCHAIN_EOF
-	set(CMAKE_SYSTEM_NAME ${SYSTEM_NAME})
-	set(CMAKE_C_COMPILER "{{zig_cc}}")
-	set(CMAKE_CXX_COMPILER "{{zig_cxx}}")
-	set(CMAKE_AR "{{zig_ar}}")
-	set(CMAKE_C_COMPILER_TARGET "{{target}}")
-	set(CMAKE_CXX_COMPILER_TARGET "{{target}}")
-	set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-	set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-	set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-	TOOLCHAIN_EOF
+	SOURCES="
+	$TBB_SRC/address_waiter.cpp
+	$TBB_SRC/allocator.cpp
+	$TBB_SRC/arena.cpp
+	$TBB_SRC/arena_slot.cpp
+	$TBB_SRC/concurrent_bounded_queue.cpp
+	$TBB_SRC/dynamic_link.cpp
+	$TBB_SRC/exception.cpp
+	$TBB_SRC/global_control.cpp
+	$TBB_SRC/governor.cpp
+	$TBB_SRC/itt_notify.cpp
+	$TBB_SRC/main.cpp
+	$TBB_SRC/market.cpp
+	$TBB_SRC/misc.cpp
+	$TBB_SRC/misc_ex.cpp
+	$TBB_SRC/observer_proxy.cpp
+	$TBB_SRC/parallel_pipeline.cpp
+	$TBB_SRC/private_server.cpp
+	$TBB_SRC/profiling.cpp
+	$TBB_SRC/queuing_rw_mutex.cpp
+	$TBB_SRC/rml_tbb.cpp
+	$TBB_SRC/rtm_mutex.cpp
+	$TBB_SRC/rtm_rw_mutex.cpp
+	$TBB_SRC/semaphore.cpp
+	$TBB_SRC/small_object_pool.cpp
+	$TBB_SRC/task.cpp
+	$TBB_SRC/task_dispatcher.cpp
+	$TBB_SRC/task_group_context.cpp
+	$TBB_SRC/tcm_adaptor.cpp
+	$TBB_SRC/thread_dispatcher.cpp
+	$TBB_SRC/thread_request_serializer.cpp
+	$TBB_SRC/threading_control.cpp
+	$TBB_SRC/version.cpp
+	"
 
-	cmake -S "$(pwd)/vendor/tbb" -B "$BUILD_DIR" \
-	-G Ninja \
-	-DCMAKE_BUILD_TYPE=Release \
-	-DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
-	-DCMAKE_CXX_FLAGS="$TBB_ARCH_FLAGS" \
-	-DBUILD_SHARED_LIBS=OFF \
-	-DTBB_TEST=OFF \
-	-DTBB_STRICT=OFF \
-	-DTBBMALLOC_BUILD=OFF \
-	-DTBBMALLOC_PROXY_BUILD=OFF \
-	-DTBB_DISABLE_HWLOC_AUTOMATIC_SEARCH=ON
-	cmake --build "$BUILD_DIR" --parallel
-
-	TBB_A="$(find "$BUILD_DIR" -name 'libtbb.a' | head -1)"
-	if [ -z "$TBB_A" ]; then
-	echo "ERROR: could not find libtbb.a under $BUILD_DIR" >&2
-		exit 1
-		fi
-		echo "Found: $TBB_A"
-
-	mkdir -p "$BUILD_DIR/tbb_objects"
-	cd "$BUILD_DIR/tbb_objects"
-	{{zig_ar}} x "$TBB_A"
+	echo "Compiling TBB for {{target}}..."
+	for src in $SOURCES; do
+	obj="$OBJ_DIR/$(basename "$src" .cpp).o"
+	{{zig_cxx}} $CXX_FLAGS $DEFINES \
+		-I"$TBB_INC" -I"$TBB_SRC_INC" \
+		-c "$src" -o "$obj"
+	done
+	echo "→ TBB objects in $OBJ_DIR"
 
 # ----------------------------------------------------------------
 # Build static library for host  →  libcanon.a
