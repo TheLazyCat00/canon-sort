@@ -204,3 +204,6 @@ clean:
 
 clean-all:
 	rm -rf build dist libcanon.a vendor/tbb/build
+
+install:
+	sudo cp dist/x86_64-linux-gnu/libcanon.so /usr/local/lib/
