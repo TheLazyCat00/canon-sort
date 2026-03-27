@@ -10,10 +10,10 @@
  */
 
 /* type tags for canon_sort dispatcher */
-#define CANON_I8   1
-#define CANON_I16  2
-#define CANON_I32  4
-#define CANON_I64  8
+#define CANON_U8   1
+#define CANON_U16  2
+#define CANON_U32  4
+#define CANON_U64  8
 
 /* typed entry points — zero dispatch overhead */
 void canon_sort_i8 (void *ptr, int n) __asm__("canon_sort_i8");

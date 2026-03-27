@@ -271,10 +271,10 @@ void canon_sort_f64(void *ptr, int n) { canon_sort_typed<double>  (ptr, n); }
 
 void canon_sort(void *ptr, int n, int type_size) {
 	switch (type_size) {
-		case CANON_I8:  canon_sort_i8 (ptr, n); break;
-		case CANON_I16: canon_sort_i16(ptr, n); break;
-		case CANON_I32: canon_sort_i32(ptr, n); break;
-		case CANON_I64: canon_sort_i64(ptr, n); break;
+		case CANON_U8:  canon_sort_u8 (ptr, n); break;
+		case CANON_U16: canon_sort_u16(ptr, n); break;
+		case CANON_U32: canon_sort_u32(ptr, n); break;
+		case CANON_U64: canon_sort_u64(ptr, n); break;
 		default:
 			fprintf(stderr, "canon_sort: unknown type size %d\n", type_size);
 			break;
