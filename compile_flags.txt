@@ -1,0 +1,6 @@
+-O3
+-march=native
+-std=c++17
+-pthread
+-Iinclude
+-ltbb
