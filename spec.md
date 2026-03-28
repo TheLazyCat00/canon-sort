@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC0-1.0 -->
 # Canon sort — Technical Specification
 
 ## Overview
@@ -195,3 +196,9 @@ Space is O(n) for the scratch buffer; stack depth is bounded by `IDEAL_DEPTH` fo
 - The generic `canon_sort` dispatcher supports only unsigned integer type tags (`CANON_U8`–`CANON_U64`); signed and floating-point types must use typed entry points
 - Requires Intel TBB; not compatible with environments without TBB
 - Element count is `int`; arrays larger than `INT_MAX` elements are not supported
+
+## License
+
+This specification is released under [CC0 1.0 Universal](LICENSES/CC0-1.0.txt). To the extent possible under law, the author has waived all copyright and related or neighbouring rights to this document. The algorithm design, data structures, and techniques described herein are dedicated to the public domain as prior art.
+
+The reference implementation (`src/`, `include/`) is released under the MIT License.

@@ -1,6 +1,8 @@
-# Canon sort
+# Canon Sort
 
 A fast, adaptive hybrid sort for arrays of any fixed-width numeric type. Canon sort combines recursive bucket partitioning, pattern detection, and optional TBB-based parallelism to handle a wide range of input distributions efficiently.
+
+> **Prior art notice.** This repository is published as prior art. The canon sort algorithm — including its adaptive bucket partitioning, fixed-point range mapping, ping-pong scratch buffer design, and sortedness early-exit scan — is hereby dedicated to the public domain of prior art as of the first commit date of this repository.
 
 ## Features
 
@@ -54,11 +56,17 @@ just cross x86_64-linux-gnu     # single target
 just cross-all                  # all targets
 ```
 
-Supported targets: `x86_64-linux-gnu`, `x86_64-linux-musl`, `aarch64-linux-gnu`, `aarch64-linux-musl`.
+Supported Linux targets: `x86_64-linux-gnu`, `x86_64-linux-musl`, `aarch64-linux-gnu`, `aarch64-linux-musl`.
 
-Each target produces two files in `dist/<target>/`:
+Supported Windows targets: `x86_64-windows-gnu`, `aarch64-windows-gnu`.
+
+Each Linux target produces two files in `dist/<target>/`:
 - `libcanon.a` — static archive with TBB merged in (self-contained)
 - `libcanon.so` — shared library
+
+Each Windows target produces:
+- `libcanon.lib` — static archive with TBB merged in (self-contained)
+- `libcanon.dll` — shared library
 
 ### Cleaning
 
@@ -112,3 +120,13 @@ void canon_sort_f64(void *ptr, int n);
 
 - NaN behaviour is undefined for `f32`/`f64`
 - Thread parallelism is bounded by `log2(hardware_concurrency × 8)` depth and only activates for buckets with ≥ 16,384 elements
+
+## License
+
+The **specification** (`spec.md`) is released under [CC0 1.0 Universal](LICENSES/CC0-1.0.txt) — public domain, no rights reserved. The algorithm design, complexity analysis, and design decisions described therein may be freely used by anyone for any purpose.
+
+The **implementation** (`src/`, `include/`, `bench/bench.cpp`) is released under the [MIT License](LICENSES/MIT.txt).
+
+The benchmark harness includes [IPS4o](https://github.com/ips4o/ips4o) as a comparison target, which is licensed under BSD 2-Clause — see `bench/ips4o/LICENSE`.
+
+This split is intentional: the idea is public domain prior art, the code is permissively licensed.

@@ -1,6 +1,3 @@
-# canon_sort — just recipes
-# https://github.com/casey/just
-
 # ----------------------------------------------------------------
 # Variables
 # ----------------------------------------------------------------
@@ -14,7 +11,7 @@ flags_cross := "-O3 -std=c++17 -pthread"
 inc         := "-Iinclude"
 inc_bench   := "-Iinclude -I./bench/ips4o/include"
 
-targets := "x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux-musl"
+targets := "x86_64-linux-gnu x86_64-linux-musl aarch64-linux-gnu aarch64-linux-musl x86_64-windows-gnu aarch64-windows-gnu"
 
 # ----------------------------------------------------------------
 # Default: list recipes
@@ -44,11 +41,10 @@ tbb-host:
 	cmake --build vendor/tbb/build/host --parallel
 
 # ----------------------------------------------------------------
-# Build TBB for a cross target (static objects, merged into libcanon.a)
+# Build TBB for a cross target (static objects, merged into archive)
 # →  vendor/tbb/build/<target>/tbb_objects/
 # ----------------------------------------------------------------
 
-# Compile TBB sources directly with zig — no CMake needed for cross targets
 tbb-cross target:
 	#!/usr/bin/env sh
 	set -e
@@ -67,8 +63,32 @@ tbb-cross target:
 		-D_FORTIFY_SOURCE=2"
 
 	case "{{target}}" in
-	x86_64*) ARCH_FLAGS="-mwaitpkg" ;;
-	*)       ARCH_FLAGS="" ;;
+	x86_64*)  ARCH_FLAGS="-mwaitpkg" ;;
+	*)        ARCH_FLAGS="" ;;
+	esac
+
+	case "{{target}}" in
+	*windows*)
+		# Drop _WIN32_WINNT — Zig already defines it as 0x0a00 (Windows 10)
+		# Exclude dynamic_link.cpp — it pulls in Softpub.h (Windows SDK) for
+		# authenticode verification, which Zig doesn't bundle and we don't need
+		# (dynamic loading is only used when TBB is loaded as a plugin).
+		# A stub is compiled instead to satisfy linker references in
+		# allocator.cpp, governor.cpp, and rml_tbb.cpp.
+		DEFINES="$DEFINES -D_WIN32 -DUNICODE -D_UNICODE \
+			-D__TBB_DYNAMIC_LOAD_ENABLED=0"
+		DYNAMIC_LINK_SRC=""
+
+		# Compile stub
+		{{zig_cxx}} -O2 -std=c++17 -fPIC -target {{target}} $ARCH_FLAGS \
+			-I"$TBB_INC" -I"$TBB_SRC_INC" \
+			$DEFINES \
+			-c "$(pwd)/src/tbb_dynamic_link_stub.cpp" \
+			-o "$OBJ_DIR/tbb_dynamic_link_stub.o"
+		;;
+	*)
+		DYNAMIC_LINK_SRC="$TBB_SRC/dynamic_link.cpp"
+		;;
 	esac
 
 	CXX_FLAGS="-O2 -std=c++17 -fPIC -target {{target}} $ARCH_FLAGS"
@@ -79,7 +99,7 @@ tbb-cross target:
 		$TBB_SRC/arena.cpp
 		$TBB_SRC/arena_slot.cpp
 		$TBB_SRC/concurrent_bounded_queue.cpp
-		$TBB_SRC/dynamic_link.cpp
+		$DYNAMIC_LINK_SRC
 		$TBB_SRC/exception.cpp
 		$TBB_SRC/global_control.cpp
 		$TBB_SRC/governor.cpp
@@ -110,17 +130,15 @@ tbb-cross target:
 
 	echo "Compiling TBB for {{target}}..."
 	for src in $SOURCES; do
-	obj="$OBJ_DIR/$(basename "$src" .cpp).o"
-	{{zig_cxx}} $CXX_FLAGS $DEFINES \
-		-I"$TBB_INC" -I"$TBB_SRC_INC" \
-		-c "$src" -o "$obj"
+		obj="$OBJ_DIR/$(basename "$src" .cpp).o"
+		{{zig_cxx}} $CXX_FLAGS $DEFINES \
+			-I"$TBB_INC" -I"$TBB_SRC_INC" \
+			-c "$src" -o "$obj"
 	done
 	echo "→ TBB objects in $OBJ_DIR"
 
 # ----------------------------------------------------------------
 # Build static library for host  →  libcanon.a
-# (links against shared libtbb at runtime — set LD_LIBRARY_PATH
-#  or install libtbb.so to use)
 # ----------------------------------------------------------------
 
 build: tbb-host
@@ -151,6 +169,7 @@ bench: tbb-host
 
 # ----------------------------------------------------------------
 # Cross-compile canon_sort for a single target
+# Produces .a/.so on Linux, .lib/.dll on Windows
 # ----------------------------------------------------------------
 
 cross target: (tbb-cross target)
@@ -166,23 +185,46 @@ cross target: (tbb-cross target)
 		-c -o dist/{{target}}/canon_sort.o \
 		src/canon_sort.cpp
 
-	# Static: fat archive with TBB merged in
-	{{zig_ar}} rcs dist/{{target}}/libcanon.a \
-		dist/{{target}}/canon_sort.o \
-		vendor/tbb/build/{{target}}/tbb_objects/*.o
+	case "{{target}}" in
+	*windows*)
+		# Static: fat archive with TBB merged in
+		{{zig_ar}} rcs dist/{{target}}/libcanon.lib \
+			dist/{{target}}/canon_sort.o \
+			vendor/tbb/build/{{target}}/tbb_objects/*.o
 
-	# Shared: same objects wrapped as .so
-	{{zig_cxx}} -target {{target}} \
-		-shared -fPIC \
-		-Wl,--whole-archive \
-		dist/{{target}}/libcanon.a \
-		-Wl,--no-whole-archive \
-		-lpthread \
-		-o dist/{{target}}/libcanon.so
+		# Shared: .dll
+		{{zig_cxx}} -target {{target}} \
+			-shared -fPIC \
+			-Wl,--whole-archive \
+			dist/{{target}}/libcanon.lib \
+			-Wl,--no-whole-archive \
+			-lkernel32 -lws2_32 \
+			-o dist/{{target}}/libcanon.dll
+
+		echo "→ dist/{{target}}/libcanon.lib"
+		echo "→ dist/{{target}}/libcanon.dll"
+		;;
+	*)
+		# Static: fat archive with TBB merged in
+		{{zig_ar}} rcs dist/{{target}}/libcanon.a \
+			dist/{{target}}/canon_sort.o \
+			vendor/tbb/build/{{target}}/tbb_objects/*.o
+
+		# Shared: .so
+		{{zig_cxx}} -target {{target}} \
+			-shared -fPIC \
+			-Wl,--whole-archive \
+			dist/{{target}}/libcanon.a \
+			-Wl,--no-whole-archive \
+			-lpthread \
+			-o dist/{{target}}/libcanon.so
+
+		echo "→ dist/{{target}}/libcanon.a"
+		echo "→ dist/{{target}}/libcanon.so"
+		;;
+	esac
 
 	rm dist/{{target}}/canon_sort.o
-	echo "→ dist/{{target}}/libcanon.a"
-	echo "→ dist/{{target}}/libcanon.so"
 
 # ----------------------------------------------------------------
 # Cross-compile for all targets

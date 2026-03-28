@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 #include "../include/canon_sort.hpp"
 
 #include <cstdint>
