@@ -29,7 +29,6 @@ Canon sort is strongest in the 1k–100k range across most distributions. At 5M 
 ## Requirements
 
 - Intel TBB (`tbb::task_group`)
-- A compiler supporting `__asm__` symbol aliasing (GCC, Clang)
 
 ## Building
 
