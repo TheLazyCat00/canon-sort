@@ -16,17 +16,19 @@
 #define CANON_U32  4
 #define CANON_U64  8
 
-/* typed entry points — zero dispatch overhead */
-void canon_sort_i8 (void *ptr, int n) __asm__("canon_sort_i8");
-void canon_sort_i16(void *ptr, int n) __asm__("canon_sort_i16");
-void canon_sort_i32(void *ptr, int n) __asm__("canon_sort_i32");
-void canon_sort_i64(void *ptr, int n) __asm__("canon_sort_i64");
-void canon_sort_u8 (void *ptr, int n) __asm__("canon_sort_u8");
-void canon_sort_u16(void *ptr, int n) __asm__("canon_sort_u16");
-void canon_sort_u32(void *ptr, int n) __asm__("canon_sort_u32");
-void canon_sort_u64(void *ptr, int n) __asm__("canon_sort_u64");
-void canon_sort_f32(void *ptr, int n) __asm__("canon_sort_f32");
-void canon_sort_f64(void *ptr, int n) __asm__("canon_sort_f64");
+extern "C" {
+	/* typed entry points — zero dispatch overhead */
+	void canon_sort_i8 (void *ptr, int n);
+	void canon_sort_i16(void *ptr, int n);
+	void canon_sort_i32(void *ptr, int n);
+	void canon_sort_i64(void *ptr, int n);
+	void canon_sort_u8 (void *ptr, int n);
+	void canon_sort_u16(void *ptr, int n);
+	void canon_sort_u32(void *ptr, int n);
+	void canon_sort_u64(void *ptr, int n);
+	void canon_sort_f32(void *ptr, int n);
+	void canon_sort_f64(void *ptr, int n);
 
-/* convenience dispatcher */
-void canon_sort(void *ptr, int n, int type_size) __asm__("canon_sort");
+	/* convenience dispatcher */
+	void canon_sort(void *ptr, int n, int type_size);
+}
