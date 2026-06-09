@@ -62,4 +62,28 @@ pub fn build(b: *std.Build) void {
     const bench_step = b.step("bench", "Build and run the benchmark");
     bench_step.dependOn(&run_bench.step);
     b.installArtifact(bench);
+
+    // ----------------------------------------------------------------
+    // Indirect pointer benchmark
+    // ----------------------------------------------------------------
+    const bench_indirect = b.addExecutable(.{
+        .name     = "bench_indirect",
+        .target   = target,
+        .optimize = optimize,
+    });
+    bench_indirect.addCSourceFiles(.{
+        .files = &.{
+            "src/canon_sort.cpp",
+            "bench/bench_indirect.cpp",
+        },
+        .flags = &.{ "-O3", "-march=native", "-std=c++17" },
+    });
+    bench_indirect.addIncludePath(b.path("include"));
+    bench_indirect.linkSystemLibrary("tbb");
+    bench_indirect.linkLibCpp();
+
+    const run_bench_indirect = b.addRunArtifact(bench_indirect);
+    const bench_indirect_step = b.step("bench-indirect", "Build and run the indirect pointer benchmark");
+    bench_indirect_step.dependOn(&run_bench_indirect.step);
+    b.installArtifact(bench_indirect);
 }

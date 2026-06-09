@@ -1,0 +1,54 @@
+Canon Sort Indirect Pointer Benchmark
+Warmup: 2  |  Bench reps: 9  |  Metric: MEDIAN run (ms)
+`std::sort (objs)` moves full objects; the pointer variants only reorder the pointer array.
+Canon sort precomputes and caches keys once per object before sorting pointers.
+
+══════════════════════════════════════════════════════════════════════════════════════
+  Cheap key extractor  (return obj.key)
+══════════════════════════════════════════════════════════════════════════════════════
+
+  n = 10000    |  Results in (ms) - MEDIAN
+  Algorithm             Uniform   Gaussian     Sorted    FewVals
+  --------------------------------------------------------------
+  std::sort (objs)     0.946538   0.953342   0.547544   0.476885
+  std::sort (ptrs)     0.958575   0.933097   0.553602   0.519707
+  Canon Sort (ptrs)    0.092657   0.090770   0.041440   0.047617
+
+  n = 100000   |  Results in (ms) - MEDIAN
+  Algorithm             Uniform   Gaussian     Sorted    FewVals
+  --------------------------------------------------------------
+  std::sort (objs)    12.081645  11.901464   6.786182   5.771778
+  std::sort (ptrs)    13.118559  12.970816   7.016569   6.430787
+  Canon Sort (ptrs)    1.278416   1.248752   0.793081   0.571946
+
+  n = 1000000  |  Results in (ms) - MEDIAN
+  Algorithm             Uniform   Gaussian     Sorted    FewVals
+  --------------------------------------------------------------
+  std::sort (objs)   140.510768 140.727770  78.525561  71.394071
+  std::sort (ptrs)   170.577047 167.159694  70.682161  80.363505
+  Canon Sort (ptrs)   19.365416  20.117929   6.545399  11.078224
+
+══════════════════════════════════════════════════════════════════════════════════════
+  Expensive key extractor  (mixed fields + payload)
+══════════════════════════════════════════════════════════════════════════════════════
+
+  n = 10000    |  Results in (ms) - MEDIAN
+  Algorithm             Uniform   Gaussian     Sorted    FewVals
+  --------------------------------------------------------------
+  std::sort (objs)     1.637602   1.667861   1.670618   1.654538
+  std::sort (ptrs)     1.683718   1.699398   1.702301   1.682713
+  Canon Sort (ptrs)    0.160232   0.165477   0.159384   0.174279
+
+  n = 100000   |  Results in (ms) - MEDIAN
+  Algorithm             Uniform   Gaussian     Sorted    FewVals
+  --------------------------------------------------------------
+  std::sort (objs)    21.103886  20.937719  21.032823  20.910686
+  std::sort (ptrs)    27.432804  23.738391  23.724238  24.223495
+  Canon Sort (ptrs)    2.680120   2.822332   2.696044   2.643962
+
+  n = 1000000  |  Results in (ms) - MEDIAN
+  Algorithm             Uniform   Gaussian     Sorted    FewVals
+  --------------------------------------------------------------
+  std::sort (objs)   261.666902 262.676141 259.601777 256.929352
+  std::sort (ptrs)   334.896251 338.820914 344.111171 352.591210
+  Canon Sort (ptrs)   30.403771  31.933544  32.089315  30.898020

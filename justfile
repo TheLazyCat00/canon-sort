@@ -168,6 +168,25 @@ bench: tbb-host
 	./build/bench
 
 # ----------------------------------------------------------------
+# Build indirect-pointer benchmark binary and run it
+# ----------------------------------------------------------------
+
+bench-indirect: tbb-host
+	#!/usr/bin/env sh
+	set -e
+	mkdir -p build
+	TBB_LIB_DIR=$(dirname $(find vendor/tbb/build/host -name 'libtbb.so' | head -1))
+	echo "TBB lib dir: $TBB_LIB_DIR"
+	{{zig_cxx}} {{flags}} {{inc}} \
+		-Ivendor/tbb/include \
+		-L "$TBB_LIB_DIR" \
+		-Wl,-rpath,"$TBB_LIB_DIR" \
+		-o build/bench_indirect \
+		src/canon_sort.cpp bench/bench_indirect.cpp \
+		-ltbb
+	./build/bench_indirect
+
+# ----------------------------------------------------------------
 # Cross-compile canon_sort for a single target
 # Produces .a/.so on Linux, .lib/.dll on Windows
 # ----------------------------------------------------------------

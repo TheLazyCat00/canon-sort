@@ -7,6 +7,7 @@ A fast, adaptive hybrid sort for arrays of any fixed-width numeric type. Canon s
 ## Features
 
 - Supports all standard integer and floating-point types (`i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, `f64`)
+- C++ indirect pointer sorting helpers for heap objects via cached numeric key extraction
 - Adaptive strategy selection: early exits for sorted/reversed/uniform data, radix fallback for clustered distributions
 - Parallel recursion via Intel TBB (`tbb::task_group`) with work-stealing scheduler
 - Single scratch buffer allocation — no per-level allocations, no unnecessary copies
@@ -18,13 +19,13 @@ Benchmarked against hand-written quicksort, LSD radix sort, pdqsort (`std::sort`
 
 | n | Uniform | Gaussian | Sorted | RevSorted | PipeOrgan | FewVals |
 |---|---------|----------|--------|-----------|-----------|---------|
-| 1,000 | **fastest** | 2nd | 4th | 3rd | **fastest** | 3rd |
-| 10,000 | **fastest** | **fastest** | 3rd | 3rd | **fastest** | 3rd |
-| 100,000 | 2nd | 2nd | 2nd | 2nd | **fastest** | 2nd |
-| 1,000,000 | 2nd | 2nd | 3rd | 2nd | 2nd | 3rd |
-| 5,000,000 | 2nd | 2nd | 3rd | 3rd | 2nd | 3rd |
+| 1,000 | **fastest** | **fastest** | **fastest** | **fastest** | **fastest** | **fastest** |
+| 10,000 | **fastest** | **fastest** | **fastest** | **fastest** | **fastest** | **fastest** |
+| 100,000 | **fastest** | **fastest** | 2nd | **fastest** | **fastest** | **fastest** |
+| 1,000,000 | **fastest** | **fastest** | 2nd | **fastest** | **fastest** | 2nd |
+| 5,000,000 | 2nd | 2nd | 2nd | **fastest** | **fastest** | 2nd |
 
-Canon sort is strongest in the 1k–100k range across most distributions. At 5M elements, IPS4o's more aggressive parallelism pulls ahead. At small sizes, pdqsort wins on already-structured inputs (sorted, few values) due to its pattern detection.
+In the current benchmark run, canon sort is fastest on all six tested distributions at 1k and 10k, on five of six at 100k, on four of six at 1M, and remains top-two everywhere at 5M. IPS4o still wins the largest fully parallel-friendly cases (notably uniform, gaussian, sorted, and few-values at 5M), while canon sort stays strongest on reverse-sorted and pipe-organ inputs.
 
 ## Requirements
 
@@ -114,6 +115,48 @@ void canon_sort_u64(void *ptr, int n);
 void canon_sort_f32(void *ptr, int n);
 void canon_sort_f64(void *ptr, int n);
 ```
+
+### Indirect sorting of heap objects (C++)
+
+If your objects live on the heap, keep an array of pointers and sort the pointer array by a cached numeric key.
+
+```cpp
+#include "canon_sort.hpp"
+
+struct Entity {
+    uint32_t score;
+    // ... other fields ...
+};
+
+std::vector<Entity *> ptrs = load_entities();
+canon_sort_ptrs_by(ptrs.data(), (int)ptrs.size(),
+    [](const Entity &e) { return e.score; });
+```
+
+If you already have keys precomputed, use the cached-key helper directly:
+
+```cpp
+std::vector<Entity *> ptrs = load_entities();
+std::vector<uint32_t> keys(ptrs.size());
+for (size_t i = 0; i < ptrs.size(); i++) keys[i] = ptrs[i]->score;
+
+canon_sort_ptrs_by_cached_keys(ptrs.data(), keys.data(), (int)ptrs.size());
+```
+
+These helpers reorder only the pointer array; the pointed-to heap objects stay in place. Key types must be one of the same fixed-width numeric types supported by canon sort itself. Equal-key order is unspecified (the indirect sort is not stable).
+
+### Indirect pointer benchmark
+
+```bash
+just bench-indirect   # builds and runs the heap-object pointer benchmark
+```
+
+A sample run is saved in `bench/results_indirect.txt`. The indirect benchmark now includes three baselines:
+- `std::sort (objs)` — reorders full objects
+- `std::sort (ptrs)` — reorders only pointers
+- `Canon Sort (ptrs)` — reorders only pointers after caching numeric keys once
+
+In the current 1M-element run, canon sort's cached-key pointer path is about **7.0×–12.0×** faster than `std::sort (objs)` for the cheap-key case, and about **8.1×–8.6×** faster for the expensive-key case. Against `std::sort (ptrs)`, it is about **7.3×–10.8×** faster with cheap keys and about **10.6×–11.4×** faster with expensive keys.
 
 ## Notes
 
